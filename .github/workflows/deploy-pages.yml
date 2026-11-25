@@ -30,6 +30,8 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
+      - name: Aguardar processamento do artefato
+        run: sleep 5
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4
