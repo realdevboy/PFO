@@ -3,10 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Prumo: assistente financeiro pessoal</title>
+<title>PFO — organização financeira</title>
 <style>
 :root{color-scheme:light dark;--bg:#eeece6;--sf:#fbfaf7;--ink:#1f2421;--mut:#5b605a;--ln:#d9d6cc;--ac:#1f5d4a;--on:#fff;--ok:#1f6b4f;--warn:#965a0a;--bad:#a63a2b;--r:12px}
 @media(prefers-color-scheme:dark){:root{--bg:#161815;--sf:#1f221e;--ink:#eceae3;--mut:#a5a99f;--ln:#383c35;--ac:#86c8a8;--on:#10241a;--ok:#86c8a8;--warn:#e2ab5c;--bad:#f09483}}
+:root[data-theme="light"]{color-scheme:light;--bg:#eeece6;--sf:#fbfaf7;--ink:#1f2421;--mut:#5b605a;--ln:#d9d6cc;--ac:#1f5d4a;--on:#fff;--ok:#1f6b4f;--warn:#965a0a;--bad:#a63a2b}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#161815;--sf:#1f221e;--ink:#eceae3;--mut:#a5a99f;--ln:#383c35;--ac:#86c8a8;--on:#10241a;--ok:#86c8a8;--warn:#e2ab5c;--bad:#f09483}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 calc(80px + env(safe-area-inset-bottom))}
 .w{max-width:940px;margin:0 auto;padding:0 16px}
@@ -17,10 +19,15 @@ b,strong{font-weight:600}.mut{color:var(--mut)}.n{font-variant-numeric:tabular-n
 :focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 header .w{display:flex;justify-content:space-between;align-items:center;padding-top:16px;padding-bottom:4px}
 .brand{font-size:1.4rem;font-weight:600;letter-spacing:-.04em}
+.brandset{display:flex;align-items:center;gap:14px}.toptools{display:flex;gap:6px;flex-wrap:wrap}.toptools .btn{min-height:40px;padding:0 10px;font-size:.9rem}
+body.private .n,body.private .big,body.private .stats strong,body.private .goal .money,body.private .goal>div>strong,body.private .salary-total strong,body.private .calc-result strong{filter:blur(8px);user-select:none}body.private .donut svg text{opacity:0}
+.salary-schedule{margin:0 0 20px;padding:0;list-style:none}.salary-schedule li{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--ln)}
+.calc-result{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:10px}.calc-result div{padding:12px;border:1px solid var(--ln);border-radius:8px}.calc-result span{display:block;color:var(--mut);font-size:.88rem}.calc-result strong{font-variant-numeric:tabular-nums}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--sf);border-top:1px solid var(--ln);padding-bottom:env(safe-area-inset-bottom);z-index:5}
 nav a{flex:1;text-align:center;padding:14px 2px;min-height:48px;color:var(--mut);text-decoration:none;font-size:.88rem;border-top:3px solid transparent}
 nav a[aria-current=page]{color:var(--ink);font-weight:600;border-top-color:var(--ac)}
 @media(min-width:760px){nav{position:static;max-width:940px;margin:8px auto 0;border:0;border-bottom:1px solid var(--ln);background:none;padding:0 16px}nav a{flex:none;padding:12px 18px;font-size:1rem}body{padding-bottom:24px}}
+@media(max-width:520px){header .w{align-items:flex-start;flex-direction:column;gap:8px}.brandset{align-items:flex-start;flex-direction:column;gap:8px}.toptools .btn{padding:0 8px}}
 main{padding-top:16px;padding-bottom:16px}
 .mbar{display:flex;align-items:center;gap:8px;margin-bottom:20px}.mbar strong{flex:1;font-size:1.05rem}
 .btn{font:inherit;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--ln);background:var(--sf);color:var(--ink);cursor:pointer;transition:transform .1s}
@@ -63,7 +70,7 @@ footer{border-top:1px solid var(--ln);padding:20px 0 8px;font-size:.9rem;color:v
 </head>
 <body>
 <a class="skip" href="#main">Pular para o conteúdo</a>
-<header><div class="w"><span class="brand">Prumo</span><span class="mut" id="warn"></span></div></header>
+<header><div class="w"><div class="brandset"><span class="brand">PFO</span><div class="toptools" role="group" aria-label="Tema e privacidade"><button class="btn sm" type="button" data-theme-choice="light" aria-label="Ativar tema claro">Claro</button><button class="btn sm" type="button" data-theme-choice="dark" aria-label="Ativar tema escuro">Escuro</button><button class="btn sm" type="button" data-theme-choice="auto" aria-label="Usar tema do dispositivo">Auto</button><button class="btn sm" type="button" id="privacy-toggle" aria-pressed="false">Ocultar valores</button></div></div><span class="mut" id="warn" role="status"></span></div></header>
 <nav aria-label="Seções"><a href="#painel">Painel</a><a href="#renda">Renda</a><a href="#fixas">Fixas</a><a href="#variaveis">Variáveis</a><a href="#caixinhas">Caixinhas</a></nav>
 <div class="w"><main id="main" tabindex="-1"></main>
 <footer>
@@ -96,15 +103,19 @@ const dfmt=s=>new Intl.DateTimeFormat("pt-BR").format(new Date(s+"T12:00:00"));
 const uid=()=>Math.random().toString(36).slice(2,9);
 function pm(s){s=String(s||"").replace(/R\$|\s/g,"");if(!s)return NaN;if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,"");const x=Number(s);return isFinite(x)&&x>=0?Math.round(x*100):NaN}
 const val=c=>(c/100).toString().replace(".",",");
-let ok=true;const def=()=>({ver:1,sal:0,extras:[],fixed:[],vars:[],goals:[],split:[50,30,20]});
+let ok=true;const def=()=>({ver:1,sal:0,salaryBase:null,salaryHistory:[],extras:[],fixed:[],vars:[],goals:[],split:[50,30,20],benefit:{mode:"clt",monthly:0,months:12}});
 const valid=d=>d&&d.ver===1&&Number.isInteger(d.sal)&&["extras","fixed","vars","goals"].every(k=>Array.isArray(d[k]))&&Array.isArray(d.split)&&d.goals.every(g=>g&&Array.isArray(g.hist));
 function load(){try{const r=localStorage.getItem(KEY);if(r){const d=JSON.parse(r);if(valid(d))return d}}catch(e){ok=false}return def()}
-let S=load(),ui={m:ym(T),v:"painel",edit:null,q:"",fc:"",focus:null};
+let S={...def(),...load()},ui={m:ym(T),v:"painel",edit:null,q:"",fc:"",focus:null};
+const salaryAt=m=>{const h=(S.salaryHistory||[]).filter(x=>x&&x.m<=m&&Number.isInteger(x.amt)).sort((a,b)=>a.m.localeCompare(b.m));return h.length?h[h.length-1].amt:(Number.isInteger(S.salaryBase)?S.salaryBase:S.sal)};
+const extraAmount=(e,m)=>{if(!e.rec)return e.m===m?e.amt:0;const freq=e.freq||"month",every=Math.max(1,Number(e.every)||1),start=e.start||((e.m||ym(T))+"-01"),[sy,sm,sd]=start.split("-").map(Number),[yy,mm]=m.split("-").map(Number),startMonth=sy*12+sm-1,targetMonth=yy*12+mm-1,monthDiff=targetMonth-startMonth;if(monthDiff<0)return 0;if(freq==="month")return monthDiff%every===0&&sd<=new Date(yy,mm,0).getDate()?e.amt:0;if(freq==="year")return monthDiff%(12*every)===0&&sd<=new Date(yy,mm,0).getDate()?e.amt:0;const step=(freq==="week"?7:1)*every,days=new Date(yy,mm,0).getDate();let count=0;for(let d=1;d<=days;d++){const delta=Math.round((Date.UTC(yy,mm-1,d)-Date.UTC(sy,sm-1,sd))/86400000);if(delta>=0&&delta%step===0)count++}return count*e.amt};
+const recurrenceLabel=e=>{if(!e.rec)return"Pontual · "+ml(e.m);const f=e.freq||"month",n=Math.max(1,Number(e.every)||1),names={day:["dia","dias"],week:["semana","semanas"],month:["mês","meses"],year:["ano","anos"]};return"Cada "+(n===1?names[f][0]:n+" "+names[f][1])};
+const benefitValues=()=>{const b=S.benefit||{mode:"clt",monthly:0,months:12},m=Math.max(0,Math.min(12,Number(b.months)||0)),base=Number(b.monthly)||salaryAt(ui.m),thirteenth=Math.round(base*m/12),vacBase=Math.round(base*m/12),third=Math.round(vacBase/3);return{thirteenth,vacation:vacBase+third,monthlyReserve:Math.round((base+base*4/3)/12)}};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){ok=false}$("#warn").textContent=ok?"":"Sem armazenamento neste navegador: exporte seus dados."}
 const commit=()=>{save();render()};
 let tt;function toast(m,undo){const t=$("#toast");t.innerHTML=`<span>${esc(m)}</span>`+(undo?'<button>Desfazer</button>':"");t.classList.add("on");if(undo)$("button",t).onclick=()=>{undo();t.classList.remove("on")};clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),6000)}
 function del(k,id,msg){const snap=JSON.stringify(S);S[k]=S[k].filter(x=>x.id!==id);ui.edit=null;commit();toast(msg,()=>{S=JSON.parse(snap);commit()})}
-function calc(m){const inc=S.sal+S.extras.filter(e=>e.rec||e.m===m).reduce((a,e)=>a+e.amt,0),fx=S.fixed.reduce((a,f)=>a+f.amt,0),vr=S.vars.filter(v=>v.date.startsWith(m)),vt=vr.reduce((a,v)=>a+v.amt,0),
+function calc(m){const inc=salaryAt(m)+S.extras.reduce((a,e)=>a+extraAmount(e,m),0),fx=S.fixed.reduce((a,f)=>a+f.amt,0),vr=S.vars.filter(v=>v.date.startsWith(m)),vt=vr.reduce((a,v)=>a+v.amt,0),
 sv=Math.max(0,S.goals.flatMap(g=>g.hist).filter(h=>!h.init&&h.d.startsWith(m)).reduce((a,h)=>a+h.amt,0)),cat={};
 S.fixed.forEach(f=>cat[f.cat]=(cat[f.cat]||0)+f.amt);vr.forEach(v=>cat[v.cat]=(cat[v.cat]||0)+v.amt);return{inc,fx,vt,sv,bal:inc-fx-vt-sv,cat,vr}}
 const fld=(n,l,v="",a="")=>`<label>${l}<input name="${n}" value="${esc(v)}" ${a}><span class="err" role="alert"></span></label>`;
@@ -132,12 +143,16 @@ return`${mbar()}<div class="hero"><p>${c.bal<0?"Faltam neste mês":"Sobram neste
 <section><h2>Distribuição da renda</h2>${dist}<form data-form="split" class="split"><label>Necess. %<input name="a" value="${sp[0]}" inputmode="numeric"></label><label>Desejos %<input name="b" value="${sp[1]}" inputmode="numeric"></label><label>Futuro %<input name="c" value="${sp[2]}" inputmode="numeric"></label><button class="btn" style="align-self:end">Salvar</button></form></section></div>
 <section><h2>O que merece atenção</h2><ul class="ins">${(ins.length?ins:["Tudo em ordem por enquanto."]).map(i=>`<li>${i}</li>`).join("")}</ul></section>`};
 function mnth(g){const[y,mo]=g.due.split("-").map(Number),n=(y-T.getFullYear())*12+(mo-1-T.getMonth());return n<0?"o prazo já passou":`guardar ${fmt(Math.ceil(Math.max(0,g.target-g.cur)/Math.max(1,n)))} por mês até ${dfmt(g.due)}`}
-V.renda=()=>{const e=ed("extras"),ex=S.extras.filter(x=>x.rec||x.m===ui.m),c=calc(ui.m);
-return`${mbar()}<section><h2>Salário líquido mensal</h2><form class="f" data-form="sal">${money("amt","Valor recebido por mês",S.sal||undefined)}<div class="fa"><button class="btn pri">Salvar salário</button></div></form></section>
-<section><h2>Rendas extras</h2><form class="f" data-form="extras">${fld("name","Origem",e?e.name:"",'placeholder="Freelance, venda…"')}${money("amt","Valor",e?e.amt:undefined)}<label><span style="display:block;min-height:44px;padding-top:12px"><input type="checkbox" name="rec"${e&&e.rec?" checked":""}>Recorrente</span></label>${fbtn("extras")}</form>
-${ex.length?`<ul class="list">${ex.map(x=>`<li><span class="t">${esc(x.name)}</span><span class="s">${x.rec?"Todo mês":"Só em "+ml(x.m)}</span><span class="a"><strong class="n">${fmt(x.amt)}</strong>${acts("extras",x.id)}</span></li>`).join("")}</ul>`:empty("Nenhuma renda extra neste mês.")}
-<p style="margin-top:16px"><strong>Renda total de ${ml(ui.m)}: ${fmt(c.inc)}</strong></p></section>`};
-V.fixas=()=>{const e=ed("fixed"),l=[...S.fixed].sort((a,b)=>a.day-b.day),pg=l.filter(f=>f.paid&&f.paid[ui.m]).reduce((a,f)=>a+f.amt,0),tot=l.reduce((a,f)=>a+f.amt,0);
+function rendaView(){const e=ed("extras"),ex=S.extras.filter(x=>extraAmount(x,ui.m)>0),c=calc(ui.m),b=S.benefit||{mode:"clt",monthly:0,months:12},bv=benefitValues(),history=(S.salaryHistory||[]).slice().sort((a,b)=>b.m.localeCompare(a.m));
+let html=mbar()+'<section><h2>Salário líquido</h2><p class="mut" style="margin-bottom:10px">Cada ajuste vale a partir do mês escolhido e preserva os meses anteriores.</p><form class="f" data-form="sal">'+money("amt","Valor mensal",salaryAt(ui.m)||undefined)+'<label>Válido a partir de<input type="month" name="effective" value="'+ui.m+'"><span class="err" role="alert"></span></label><div class="fa"><button class="btn pri">Salvar salário</button></div></form>';
+if(history.length)html+='<ul class="salary-schedule">'+history.map(x=>'<li><span>A partir de '+ml(x.m)+'</span><strong class="n">'+fmt(x.amt)+'</strong></li>').join("")+'</ul>';
+html+='</section><section><h2>Rendas extras</h2><form class="f" data-form="extras">'+fld("name","Origem",e?e.name:"",'placeholder="Freelance, venda…"')+money("amt","Valor por ocorrência",e?e.amt:undefined)+'<label><span style="display:block;min-height:44px;padding-top:12px"><input type="checkbox" name="rec"'+(e&&e.rec?" checked":"")+'>Recorrente</span></label>'+sel("freq","A cada",[["day","Dia(s)"],["week","Semana(s)"],["month","Mês(es)"],["year","Ano(s)"]],e?e.freq||"month":"month")+fld("every","Intervalo",e?e.every||1:1,'type="number" min="1" step="1"')+fld("start","Data de início",e?e.start||e.m+"-01":ui.m+"-01",'type="date"')+fbtn("extras")+'</form>';
+html+=ex.length?'<ul class="list">'+ex.map(x=>'<li><span class="t">'+esc(x.name)+'</span><span class="s">'+esc(recurrenceLabel(x))+(x.rec?' · desde '+dfmt(x.start||x.m+"-01"):"")+'</span><span class="a"><strong class="n">'+fmt(extraAmount(x,ui.m))+'</strong>'+acts("extras",x.id)+'</span></li>').join("")+'</ul>':empty("Nenhuma renda extra prevista neste mês.");
+html+='<p class="salary-total" style="margin-top:16px"><strong>Renda total de '+ml(ui.m)+': '+fmt(c.inc)+'</strong></p></section>';
+html+='<section><h2>Calculadora de 13º e férias</h2><p class="mut" style="margin-bottom:10px">Estimativa bruta para CLT ou reserva equivalente para PJ.</p><form class="f" id="benefit-form"><label>Perfil<select name="mode"><option value="clt"'+(b.mode==="clt"?" selected":"")+'>CLT</option><option value="pj"'+(b.mode==="pj"?" selected":"")+'>PJ</option></select></label>'+money("monthly","Remuneração mensal",b.monthly||salaryAt(ui.m)||undefined)+'<label>Meses considerados no ano<input name="months" type="number" min="0" max="12" step="1" value="'+Number(b.months??12)+'"></label></form><div class="calc-result" id="benefit-result">'+benefitMarkup(b,bv)+'</div><p class="mut" id="benefit-note" style="margin-top:10px;font-size:.85rem">'+(b.mode==="pj"?"Para PJ, os valores são uma sugestão de reserva financeira; não representam benefício trabalhista automático.":"Estimativa simplificada: 1/12 da remuneração por mês considerado e adicional de 1/3 nas férias. Não inclui variáveis, descontos, encargos ou particularidades contratuais.")+'</p></section>';
+return html}
+function benefitMarkup(b,v){return'<div><span>'+(b.mode==="pj"?"Reserva de 13º":"13º proporcional estimado")+'</span><strong>'+fmt(v.thirteenth)+'</strong></div><div><span>'+(b.mode==="pj"?"Reserva de férias + 1/3":"Férias + 1/3 estimadas")+'</span><strong>'+fmt(v.vacation)+'</strong></div><div><span>Reserva mensal de referência</span><strong>'+fmt(v.monthlyReserve)+'</strong></div>'}
+V.renda=()=>rendaView();V.fixas=()=>{const e=ed("fixed"),l=[...S.fixed].sort((a,b)=>a.day-b.day),pg=l.filter(f=>f.paid&&f.paid[ui.m]).reduce((a,f)=>a+f.amt,0),tot=l.reduce((a,f)=>a+f.amt,0);
 return`${mbar()}<section><h2>Despesas fixas</h2><form class="f" data-form="fixed">${fld("name","Nome",e?e.name:"",'placeholder="Aluguel, internet…"')}${money("amt","Valor",e?e.amt:undefined)}${sel("cat","Categoria",CATS,e?e.cat:"Moradia")}${fld("day","Dia do vencimento",e?e.day:"",'inputmode="numeric" placeholder="1 a 31"')}${fbtn("fixed")}</form>
 ${l.length?`<p class="mut" style="margin-bottom:8px">Pago ${fmt(pg)} de ${fmt(tot)}</p><ul class="list">${l.map(f=>{const p=f.paid&&f.paid[ui.m];return`<li><span class="t">${esc(f.name)}</span><span class="s">${esc(f.cat)}, vence dia ${f.day} ${dueTag(f,ui.m)}</span><span class="a"><strong class="n">${fmt(f.amt)}</strong><button class="btn sm" data-act="pay" data-id="${f.id}" aria-pressed="${!!p}">${p?"Pago":"Marcar como pago"}</button>${acts("fixed",f.id)}</span></li>`}).join("")}</ul>`:empty("Nenhuma despesa fixa. Adicione aluguel, internet, plano de saúde…")}</section>`};
 V.variaveis=()=>{const e=ed("vars"),q=ui.q.toLowerCase(),l=calc(ui.m).vr.filter(v=>(!ui.fc||v.cat===ui.fc)&&(!q||v.desc.toLowerCase().includes(q))).sort((a,b)=>b.date.localeCompare(a.date)),tot=l.reduce((a,v)=>a+v.amt,0);
@@ -153,7 +168,7 @@ return`<article class="goal" style="--gc:${g.color}"><div class="gh">${ill(g.typ
 <form class="mov" data-form="mov" data-id="${g.id}"><label class="sr" for="m${g.id}">Valor da movimentação</label><input id="m${g.id}" name="amt" inputmode="decimal" placeholder="Valor" autocomplete="off"><button class="btn pri sm" value="in">Depositar</button><button class="btn sm" value="out">Retirar</button></form><span class="err" role="alert" id="e${g.id}"></span>
 <div class="fa" style="margin-bottom:8px">${acts("goals",g.id)}</div><details><summary>Histórico</summary><ul class="list">${g.hist.slice().reverse().slice(0,8).map(h=>`<li><span class="s">${dfmt(h.d)}, ${esc(h.n||(h.amt>0?"Depósito":"Retirada"))}</span><span class="n ${h.amt<0?"tag bad":""}">${fmt(h.amt)}</span></li>`).join("")}</ul></details></article>`}).join("")}</div>`:empty("Crie sua primeira caixinha: reserva, viagem, casa, estudos…")}</section>`};
 function bars(){$$(".bar i[data-id]").forEach(el=>{const id=el.dataset.id,p=+el.dataset.p,prev=bars.m[id]||0;el.style.transform=`scaleX(${prev})`;el.getBoundingClientRect();requestAnimationFrame(()=>el.style.transform=`scaleX(${p})`);bars.m[id]=p})}bars.m={};
-function render(){const m=$("#main");m.innerHTML=V[ui.v]();$$("nav a").forEach(a=>a.getAttribute("href")==="#"+ui.v?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));bars();document.title="Prumo: "+ui.v;
+function render(){const m=$("#main");m.innerHTML=V[ui.v]();$$("nav a").forEach(a=>a.getAttribute("href")==="#"+ui.v?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));bars();document.title="PFO: "+ui.v;
 const f=ui.focus||(ui.edit&&"[data-form] input,[data-form] select");ui.focus=null;if(f){const x=$(f,m);if(x)x.focus()}}
 const mainEl=$("#main");
 mainEl.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,k=b.dataset.k,id=b.dataset.id;
@@ -161,17 +176,22 @@ if(a==="mo"){const n=+b.dataset.n;ui.m=n?sh(ui.m,n):ym(T);render()}
 else if(a==="edit"){ui.edit={k,id};render()}else if(a==="cancel"){ui.edit=null;render()}
 else if(a==="del")del(k,id,"Item excluído");
 else if(a==="pay"){const f=S.fixed.find(x=>x.id===id);f.paid=f.paid||{};f.paid[ui.m]=!f.paid[ui.m];commit()}});
-mainEl.addEventListener("input",e=>{if(e.target.id==="q"){ui.q=e.target.value;const p=e.target.selectionStart;ui.focus="#q";render();$("#q").setSelectionRange(p,p)}});
-mainEl.addEventListener("change",e=>{if(e.target.id==="fc"){ui.fc=e.target.value;render()}});
+mainEl.addEventListener("input",e=>{if(e.target.closest("#benefit-form")){updateBenefits();return}if(e.target.id==="q"){ui.q=e.target.value;const p=e.target.selectionStart;ui.focus="#q";render();$("#q").setSelectionRange(p,p)}});
+mainEl.addEventListener("change",e=>{if(e.target.id==="fc"){ui.fc=e.target.value;render()}else if(e.target.closest("#benefit-form"))updateBenefits()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&ui.edit){ui.edit=null;render()}});
+function updateBenefits(){const f=$("#benefit-form");if(!f)return;const cents=pm(f.elements.monthly.value),months=Math.max(0,Math.min(12,Math.trunc(Number(f.elements.months.value)||0)));S.benefit={mode:f.elements.mode.value,monthly:Number.isNaN(cents)?0:cents,months};$("#benefit-result").innerHTML=benefitMarkup(S.benefit,benefitValues());$("#benefit-note").textContent=S.benefit.mode==="pj"?"Para PJ, os valores são uma sugestão de reserva financeira; não representam benefício trabalhista automático.":"Estimativa simplificada: 1/12 da remuneração por mês considerado e adicional de 1/3 nas férias. Não inclui variáveis, descontos, encargos ou particularidades contratuais.";save()}
+function applyTheme(theme){if(theme==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.dataset.theme=theme;try{localStorage.setItem("pfo.theme",theme)}catch(e){}$$("[data-theme-choice]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeChoice===theme)))}
+function applyPrivacy(hidden){document.body.classList.toggle("private",hidden);const b=$("#privacy-toggle");b.setAttribute("aria-pressed",String(hidden));b.textContent=hidden?"Mostrar valores":"Ocultar valores";try{localStorage.setItem("pfo.private",hidden?"1":"0")}catch(e){}}
+try{applyTheme(localStorage.getItem("pfo.theme")||"auto");applyPrivacy(localStorage.getItem("pfo.private")==="1")}catch(e){applyTheme("auto");applyPrivacy(false)}
+document.addEventListener("click",e=>{const t=e.target.closest("[data-theme-choice]");if(t)applyTheme(t.dataset.themeChoice);if(e.target.closest("#privacy-toggle"))applyPrivacy(!document.body.classList.contains("private"))});
 mainEl.addEventListener("submit",e=>{e.preventDefault();const f=e.target,k=f.dataset.form,d=Object.fromEntries(new FormData(f));let first=null;
 const need=(n,good,msg)=>{const i=f.elements[n],s=i.parentNode.querySelector(".err");if(good){s.textContent="";i.removeAttribute("aria-invalid")}else{s.textContent=msg;i.setAttribute("aria-invalid","true");first=first||i}return good};
 const amt=(n,zero)=>{const c=pm(d[n]);need(n,!isNaN(c)&&(zero||c>0),zero?"Informe um valor válido, como 1.250,50.":"Informe um valor maior que zero, como 89,90.");return c};
 const up=(arr,it)=>{const i=S[arr].findIndex(x=>x.id===it.id);i<0?S[arr].unshift(it):S[arr][i]={...S[arr][i],...it}};
 const eid=ui.edit&&ui.edit.k===k?ui.edit.id:uid(),done=(m)=>{ui.edit=null;ui.focus="[data-form] input";commit();toast(m)};
 if(k==="split"){const s=[d.a,d.b,d.c].map(Number);if(s.some(x=>!(x>=0&&x<=100))||s[0]+s[1]+s[2]!==100){toast("Os três percentuais precisam somar 100.");return}S.split=s;commit();return}
-if(k==="sal"){const c=amt("amt",true);if(first)return first.focus();S.sal=c;commit();toast("Salário salvo.");return}
-if(k==="extras"){need("name",d.name.trim(),"Informe a origem.");const c=amt("amt");if(first)return first.focus();up("extras",{id:eid,name:d.name.trim(),amt:c,rec:d.rec==="on",m:ui.m});return done("Renda extra salva.")}
+if(k==="sal"){const c=amt("amt",true),m=d.effective||ui.m;need("effective",/^\d{4}-\d{2}$/.test(m),"Escolha o mês em que o novo salário começa.");if(first)return first.focus();if(!Array.isArray(S.salaryHistory))S.salaryHistory=[];if(!Number.isInteger(S.salaryBase))S.salaryBase=S.sal;const i=S.salaryHistory.findIndex(x=>x.m===m),item={m,amt:c};i<0?S.salaryHistory.push(item):S.salaryHistory[i]=item;S.salaryHistory.sort((a,b)=>a.m.localeCompare(b.m));S.sal=salaryAt(ym(T));commit();toast("Salário salvo a partir de "+ml(m)+".");return}
+if(k==="extras"){need("name",d.name.trim(),"Informe a origem.");const c=amt("amt"),every=Number(d.every),start=d.start||ui.m+"-01";need("every",Number.isInteger(every)&&every>=1,"Use um intervalo de pelo menos 1.");need("start",/^\d{4}-\d{2}-\d{2}$/.test(start),"Escolha uma data de início.");if(first)return first.focus();up("extras",{id:eid,name:d.name.trim(),amt:c,rec:d.rec==="on",freq:d.freq||"month",every:every||1,start,m:start.slice(0,7)});return done("Renda extra salva.")}
 if(k==="fixed"){need("name",d.name.trim(),"Informe o nome.");const c=amt("amt"),dy=Number(d.day);need("day",Number.isInteger(dy)&&dy>=1&&dy<=31,"Digite um dia de 1 a 31.");if(first)return first.focus();up("fixed",{id:eid,name:d.name.trim(),amt:c,cat:d.cat,day:dy});return done("Despesa fixa salva.")}
 if(k==="vars"){need("desc",d.desc.trim(),"Descreva o gasto.");const c=amt("amt");need("date",/^\d{4}-\d{2}-\d{2}$/.test(d.date),"Escolha uma data.");if(first)return first.focus();up("vars",{id:eid,desc:d.desc.trim(),amt:c,cat:d.cat,date:d.date,pay:d.pay});return done("Gasto registrado.")}
 if(k==="goals"){need("name",d.name.trim(),"Dê um nome à caixinha.");const t=amt("target"),c=f.elements.cur?amt("cur",true):0;if(first)return first.focus();const old=S.goals.find(x=>x.id===eid),g={id:eid,name:d.name.trim(),type:d.type,target:t,due:d.due,color:d.color};if(!old){g.cur=c;g.hist=c?[{d:TD,amt:c,n:"Saldo inicial",init:true}]:[]}up("goals",g);return done("Caixinha salva.")}
@@ -179,7 +199,7 @@ if(k==="mov"){const g=S.goals.find(x=>x.id===f.dataset.id),c=pm(d.amt),op=e.subm
 if(isNaN(c)||c<=0){err.textContent="Informe um valor maior que zero.";f.elements.amt.focus();return}if(op==="out"&&c>g.cur){err.textContent="Você só pode retirar até "+fmt(g.cur)+".";f.elements.amt.focus();return}
 const s=op==="out"?-c:c;g.cur+=s;g.hist.push({d:TD,amt:s});ui.focus="#m"+g.id;commit();toast(s>0?"Depósito registrado.":"Retirada registrada.")}});
 function route(){const h=location.hash.slice(1);ui.v=V[h]?h:"painel";ui.edit=null;render()}addEventListener("hashchange",()=>{route();scrollTo(0,0)});
-$("#exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:"application/json"}));a.download="prumo-backup-"+TD+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$("#exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:"application/json"}));a.download="pfo-backup-"+TD+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 $("#imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!valid(d))throw 0;S=d;commit();toast("Dados importados.")}catch(x){toast("Arquivo inválido. Nada foi alterado.")}};r.readAsText(f);e.target.value=""};
 $("#wipe").onclick=()=>{if(confirm("Apagar todos os dados deste navegador? Esta ação não pode ser desfeita.")){S=def();ui.edit=null;commit();toast("Tudo apagado.")}};
 $("#demo").onclick=()=>{if(S.fixed.length+S.vars.length+S.goals.length&&!confirm("Substituir seus dados pelos de exemplo?"))return;const m=ui.m=ym(T),D=n=>m+"-"+pad(n);
